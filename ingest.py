@@ -1,7 +1,7 @@
 import logging
 import os
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
-
+import torch
 import click
 import torch
 from langchain.docstore.document import Document
@@ -55,6 +55,7 @@ def load_documents(source_dir: str) -> list[Document]:
     # Have at least one worker and at most INGEST_THREADS workers
     n_workers = min(INGEST_THREADS, max(len(paths), 1))
     chunksize = round(len(paths) / n_workers)
+    print(len(paths))
     docs = []
     with ProcessPoolExecutor(n_workers) as executor:
         futures = []
@@ -118,6 +119,12 @@ def split_documents(documents: list[Document]) -> tuple[list[Document], list[Doc
 )
 def main(device_type):
     # Load documents and split in chunks
+
+
+    print("Torch version:",torch.__version__)
+
+    print("Is CUDA enabled?",torch.cuda.is_available())
+    device_type="cuda"
     logging.info(f"Loading documents from {SOURCE_DIRECTORY}")
     documents = load_documents(SOURCE_DIRECTORY)
     text_documents, python_documents = split_documents(documents)

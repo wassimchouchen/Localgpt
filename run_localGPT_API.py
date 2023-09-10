@@ -25,8 +25,9 @@ from transformers import (
 )
 from werkzeug.utils import secure_filename
 
-from constants import CHROMA_SETTINGS, EMBEDDING_MODEL_NAME, PERSIST_DIRECTORY, MODEL_ID, MODEL_BASENAME
+from constants import CHROMA_SETTINGS, EMBEDDING_MODEL_NAME, MODEL_ID, MODEL_BASENAME
 
+PERSIST_DIRECTORY="/DB"
 DEVICE_TYPE = "cuda" if torch.cuda.is_available() else "cpu"
 SHOW_SOURCES = True
 logging.info(f"Running on: {DEVICE_TYPE}")
@@ -45,15 +46,15 @@ else:
     print("The directory does not exist")
 
 run_langest_commands = ["python", "ingest.py"]
-if DEVICE_TYPE == "cpu":
-    run_langest_commands.append("--device_type")
-    run_langest_commands.append(DEVICE_TYPE)
+# if DEVICE_TYPE == "cpu":
+#     run_langest_commands.append("--device_type")
+#     run_langest_commands.append(DEVICE_TYPE)
 
-result = subprocess.run(run_langest_commands, capture_output=True)
-if result.returncode != 0:
-    raise FileNotFoundError(
-        "No files were found inside SOURCE_DOCUMENTS, please put a starter file inside before starting the API!"
-    )
+# result = subprocess.run(run_langest_commands, capture_output=True)
+# if result.returncode != 0:
+#     raise FileNotFoundError(
+#         "No files were found inside SOURCE_DOCUMENTS, please put a starter file inside before starting the API!"
+#     )
 
 # load the vectorstore
 DB = Chroma(
@@ -110,18 +111,21 @@ def run_ingest_route():
     try:
         if os.path.exists(PERSIST_DIRECTORY):
             try:
-                shutil.rmtree(PERSIST_DIRECTORY)
+                print("existtt")
+                # shutil.rmtree(PERSIST_DIRECTORY)
             except OSError as e:
                 print(f"Error: {e.filename} - {e.strerror}.")
         else:
-            print("The directory does not exist")
-
+            print("The directory does not existtttt")
+        print("before")
         run_langest_commands = ["python", "ingest.py"]
+        print("after")
         if DEVICE_TYPE == "cpu":
             run_langest_commands.append("--device_type")
             run_langest_commands.append(DEVICE_TYPE)
             
         result = subprocess.run(run_langest_commands, capture_output=True)
+        print(result)
         if result.returncode != 0:
             return "Script execution failed: {}".format(result.stderr.decode("utf-8")), 500
         # load the vectorstore

@@ -1,5 +1,5 @@
 import os
-
+import chromadb
 # from dotenv import load_dotenv
 from chromadb.config import Settings
 
@@ -18,9 +18,23 @@ PERSIST_DIRECTORY = f"{ROOT_DIRECTORY}/DB"
 INGEST_THREADS = os.cpu_count() or 8
 
 # Define the Chroma settings
+# CHROMA_SETTINGS = Settings(
+#     anonymized_telemetry=False,
+#     is_persistent=True,
+# )
+
+
+# Construct the Chroma client using chromadb.PersistentClient
+# Specify the path to your persist directory
 CHROMA_SETTINGS = Settings(
-    anonymized_telemetry=False,
-    is_persistent=True,
+    anonymized_telemetry=False  # Keep your desired settings here
+)
+
+# Construct the Chroma client using chromadb.PersistentClient
+# Specify the path to your persist directory
+DB = chromadb.PersistentClient(
+    path=PERSIST_DIRECTORY,
+    settings=CHROMA_SETTINGS
 )
 
 

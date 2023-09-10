@@ -22,34 +22,17 @@ from transformers import (
 )
 
 from constants import EMBEDDING_MODEL_NAME, PERSIST_DIRECTORY, MODEL_ID, MODEL_BASENAME
-
-
+device_type="cuda"
 def load_model(device_type, model_id, model_basename=None):
-    """
-    Select a model for text generation using the HuggingFace library.
-    If you are running this for the first time, it will download a model for you.
-    subsequent runs will use the model from the disk.
 
-    Args:
-        device_type (str): Type of device to use, e.g., "cuda" for GPU or "cpu" for CPU.
-        model_id (str): Identifier of the model to load from HuggingFace's model hub.
-        model_basename (str, optional): Basename of the model if using quantized models.
-            Defaults to None.
-
-    Returns:
-        HuggingFacePipeline: A pipeline object for text generation using the loaded model.
-
-    Raises:
-        ValueError: If an unsupported model or device type is provided.
-    """
     logging.info(f"Loading Model: {model_id}, on: {device_type}")
     logging.info("This action can take a few minutes!")
 
     if model_basename is not None:
         if ".ggml" in model_basename:
             logging.info("Using Llamacpp for GGML quantized models")
-            model_path = hf_hub_download(repo_id=model_id, filename=model_basename)
-            max_ctx_size = 2048
+            model_path = "models/llama-2-7b-chat.ggmlv3.q4_0.bin"
+            max_ctx_size = 4096
             kwargs = {
                 "model_path": model_path,
                 "n_ctx": max_ctx_size,
@@ -101,27 +84,21 @@ def load_model(device_type, model_id, model_basename=None):
         )
         model.tie_weights()
     else:
+
         logging.info("Using LlamaTokenizer")
         tokenizer = LlamaTokenizer.from_pretrained(model_id)
         model = LlamaForCausalLM.from_pretrained(model_id)
-
-    # Load configuration from the model to avoid warnings
-    generation_config = GenerationConfig.from_pretrained(model_id)
-    # see here for details:
-    # https://huggingface.co/docs/transformers/
-    # main_classes/text_generation#transformers.GenerationConfig.from_pretrained.returns
-
-    # Create a pipeline for text generation
+        generation_config = GenerationConfig.from_pretrained(model_id)
     pipe = pipeline(
-        "text-generation",
-        model=model,
-        tokenizer=tokenizer,
-        max_length=2048,
-        temperature=0,
-        top_p=0.95,
-        repetition_penalty=1.15,
-        generation_config=generation_config,
-    )
+    "text-generation",
+    model=model,
+    tokenizer=tokenizer,
+    max_length=2048,
+    temperature=1.0,  # Adjust temperature value as needed
+    top_p=0.95,
+    repetition_penalty=1.15,
+    do_sample=True,   # Enable sampling
+    generation_config=generation_config,)
 
     local_llm = HuggingFacePipeline(pipeline=pipe)
     logging.info("Local LLM Loaded")
@@ -176,7 +153,10 @@ def main(device_type, show_sources):
     4. Setup the Question Answer retreival chain.
     5. Question answers.
     """
+    print("Torch version:",torch.__version__)
 
+    print("Is CUDA enabled?",torch.cuda.is_available())
+    device_type="cuda"
     logging.info(f"Running on: {device_type}")
     logging.info(f"Display Source Documents set to: {show_sources}")
 
@@ -187,23 +167,24 @@ def main(device_type, show_sources):
 
     # load the vectorstore
     db = Chroma(
-        persist_directory=PERSIST_DIRECTORY,
+        # persist_directory=PERSIST_DIRECTORY,
         embedding_function=embeddings,
 
     )
     retriever = db.as_retriever()
     
+# don't try to make up an answer
+    # Question: {question}
 
-    template = """Use the following pieces of context to answer the question at the end. If you don't know the answer,\
-    just say that you don't know, don't try to make up an answer.
+    template = """You are a medical assistance Bot, Use the following pieces of context to answer the question at the end.If you don't know the answer,\
+    just say that you don't know, .
 
     {context}
 
     {history}
-    Question: {question}
     Helpful Answer:"""
 
-    prompt = PromptTemplate(input_variables=["history", "context", "question"], template=template)
+    prompt = PromptTemplate(input_variables=["history", "context"], template=template)
     memory = ConversationBufferMemory(input_key="question", memory_key="history")
 
     llm = load_model(device_type, model_id=MODEL_ID, model_basename=MODEL_BASENAME)
